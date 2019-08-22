@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<head>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel='stylesheet' href='https://pro.fontawesome.com/releases/v5.2.0/css/all.css'>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/home.css') }}">
+</head>
+<body>
+    
+    <!-- html content -->
+    <div class="jumbotron centerDiv">
+        <h1 class="display-3">Analyze your piano playing!</h1><br>
+        <p class="lead">Select a midi piano file, and we'll predict whether the piece is either more classical or jazz.</p>
+        <hr class="my-2"><br>
+        <p>This app was created using the Tensorflow API and the Python Flask framework. The CNN model takes in every note as an input, mapping each note to its pitch and timestamp.</p><br>
+        <div class="fileContainer">
+            <input type="file" id="filereader" />
+            <label for="filereader" class="btn-3"><span>select</span></label>
+
+            <div id="response"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- scripts -->
+    <script type="module" src="{{ url_for('static', filename='node_modules/midi-parser-js/src/midi-parser.js') }}"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>  
+    <script type="module"> 
+        import {MidiParser} from '../static/node_modules/midi-parser-js/src/midi-parser.js';      
+        document.querySelector("#filereader").addEventListener("click", parse);
+        function parse() {
+            var source = document.getElementById('filereader');
+            MidiParser.parse(source, function(obj){
+                var para = document.getElementById("response");
+                para.innerText = "Calculating..."
+                $.ajax({
+                    type: "POST",
+                    url: "http://127.0.0.1:5000/api",
+                    data: JSON.stringify(obj),
+                    contentType: 'application/json; charset=utf-8',
+                    dataType: "json",
+                    success: function(data){
+                        var num = parseInt(data, 10);
+                        if (num > 50) {
+                            para.innerText = "The piece is " + num + "% Jazz"
+                        }
+                        else {
+                            para.innerText = "The piece is " + (100 - num) + "% Classical"
+                        }                        
+                    },
+                    failure: function(errMsg){alert(errMsg);}
+                });
+            });
+        }
+    </script>
+</body>

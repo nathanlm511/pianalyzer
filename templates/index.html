@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <!-- Bootstrap core CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <!-- Custom styles for this template -->
+    <!--midi parsing script-->
+    <script type="module">
+        import {MidiParser} from '../node_modules/midi-parser-js/src/midi-parser.js';
+        window.onload = function(){
+            // configure MIDIReader
+            var source = document.getElementById('filereader');
+            MidiParser.parse(source, function(obj){
+                // Your callback function
+                console.log(obj);
+                if (typeof(Storage) !== "undefined") {
+                    //SET UP / READ MIDI **************************
+                    sessionStorage.setItem("myJSON", JSON.stringify(obj, undefined, 2));
+                    //A is actually 21
+                    var noteMap = new Map([
+                    [9, "A"], [10, "A#"], [11, "B"], [0, "C"], [1, "C#"], [2, "D"],
+                    [3, "D#"], [4, "E"], [5, "F"], [6, "F#"], [7, "G"], [8, "G#"]]);                     
+                    var letters = [];
+                    var notes = [];
+                    var noteTimes = [];
+                    var totalTime = 0;
+                    var tickTimes = [];
+                    var totalTick = 0;
+                    var count = 0;  
+                    console.log("here");              
+                    //bpm stuff
+                    var sessionBPM = sessionStorage.getItem("bpmKey");                                      
+                    var bpm = 60000000 / 120; //default 100 bpm 
+                    if(!(sessionBPM >= 1) && !(sessionBPM <= 200)) {
+                      //finds bpm in track
+                      for(i in obj.track[0].event) {
+                        if(obj.track[0].event[i].metaType == 81) {
+                          var bpm = obj.track[0].event[i].data;                       
+                        }
+                      }   
+                    } else {
+                      //uses inputted bpm
+                      bpm = 60000000 / sessionBPM;
+                    }  
+                    bpm = 60000000 / bpm;  
+                    var tpm = 25600;            
+                    //var tpb = obj.timeDivision;
+                    var tpb = tpm / bpm;
+                    //iterate through midi JSON
+                    for(i in obj.track[1].event) {
+                      if(obj.track[1].event[i].type == 9) {
+                        var key = obj.track[1].event[i].data[0] % 12;
+                        var time = obj.track[1].event[i].deltaTime;
+                        var tick = time/tpb;
+                        totalTime += time;
+                        totalTick += tick;
+                        var round = totalTick.toFixed(3);
+                        var roundNum = parseFloat(round);
+                        noteTimes.push(totalTime);
+                        tickTimes.push(roundNum);
+                        notes.push(key);
+                        letters.push(noteMap.get(key));                        
+                      }
+                    }  
+                    
+                    sessionStorage.setItem("letters", letters);                  
+                    // ANALYZING NOTES UNDER HERE **********************************************
+                    var keyScale; //default key = c = 0
+                    var sessionKey = parseInt(sessionStorage.getItem("noteKey"));
+                    if(!(sessionKey >= 0) && !(sessionKey <= 11)) {
+                      keyScale = 0;
+                    }else {
+                      keyScale = sessionKey;
+                    }
+                    //get jazz scale                
+                    var jazzValid = [-9, -7, -6, -5, -2, 0, 3, 5, 6, 7, 10]
+                    var jazzNotes = [];
+                    for(var i = 0; i < jazzValid.length; i++) {
+                        if(keyScale + jazzValid[i] >= 0 && keyScale + jazzValid[i] <= 11) {
+                        jazzNotes.push(keyScale + jazzValid[i]);
+                        }
+                    }
+                    //get pentatonic scale
+                    var pentValid = [-10, -8, -5, -3, 0, 2, 4, 7, 9]
+                    var pentNotes = [];
+                    for(var i = 0; i < pentValid.length; i++) {
+                        if(keyScale + pentValid[i] >= 0 && keyScale + pentValid[i] <= 11) {
+                        pentNotes.push(keyScale + pentValid[i]);
+                        }
+                    }     
+                    //analyze percentage jazz
+                    var jazzCount = 0;
+                    for(var i = 0; i < notes.length; i++) {
+                      if(jazzNotes.includes(notes[i])) {
+                        jazzCount += 1;                        
+                      } 
+                    } 
+                    var jazzPct = jazzCount / notes.length * 100;  
+                    //analyze percentage pentatonic
+                    var pentCount = 0;
+                    for(var i = 0; i < notes.length; i++) {
+                      if(pentNotes.includes(notes[i])) {
+                        pentCount += 1;                        
+                      } 
+                    } 
+                    var pentPct = pentCount / notes.length * 100;
+                    //analyze off tempo percentage
+                    var tickPct = 0;
+                    for(var i = 0; i < tickTimes.length; i++) {
+                      var decimal = tickTimes[i] % 1;
+                      var diff;
+                      if(decimal >= 0.938) {
+                        diff = 1 - decimal;
+                      } else if(decimal >= 0.813) {
+                        diff = 0.875 - decimal;
+                      } else if(decimal >= 0.688) {
+                        diff = 0.75 - decimal;
+                      } else if(decimal >= 0.563) {
+                        diff = 0.625 - decimal;
+                      } else if(decimal >= 0.438) {
+                        diff = 0.5 - decimal;
+                      } else if(decimal >= 0.313) {
+                        diff = 0.375 - decimal;
+                      } else if(decimal >= 0.188) {
+                        diff = 0.250 - decimal;
+                      } else if(decimal >= 0.063) {
+                        diff = 0.125 - decimal;
+                      } else {
+                        diff = decimal;
+                      }
+                      tickPct += diff / 0.063;
+                    }
+                    tickPct /= tickTimes.length;
+                    tickPct *= 100;
+                    //OUTPUT *******************************
+                    document.getElementById("output").innerHTML = "tickPct: " + tickPct + "<br>bpm: " + bpm + "<br>tpb: " + tpb + "<br>tick times: "+ tickTimes +"<br>noteTimes: "+ noteTimes + "<br>key scale: " + keyScale + "<br>jazz notes: " + jazzNotes +
+                    "<br>jazz pct: " + jazzPct + "<br>" + letters + "<br>" + obj.track[1].event[0].type + "<br>" + sessionStorage.getItem("myJSON");                    
+                    
+                } else {
+                  document.getElementById("output").innerHTML = "Sorry, your browser does not support web storage...";
+                }
+                //document.getElementById("output").innerHTML = JSON.stringify(obj, undefined, 2);
+            });
+        };
+    </script>
+</head>
+
+<body>
+  <button onclick="test"></button>
+  <div class="keyChange">
+    <h4>Pick key to play in: </h4>
+    <input id="keyInput" type="text" value="C"/>
+    <button type="button" id="keyBtn" onclick="saveKey()">Change</button>
+  </div>    
+  
+  <div class="bpmChange">
+    <h4>Pick bpm to play in: </h4>
+    <input id="bpmInput" type="text" value="120">
+    <button type="button" id="bpmBtn" onclick="saveBPM()">Change</button>
+  </div> 
+  
+  <h3>MIDIReader: Parse from File (INPUT element)</h3>
+  <input type="file" id="filereader"/>
+
+  <div style="background:lightgrey; padding:20px;">
+      <h3>Parsed Output :</h3>
+      <pre id="output" style="font-size:10px;">-select a .mid file-</pre>
+  </div>
+
+  <h4>Jazz %</h4>
+  <h4>Pentatonic %</h4>
+  <p><button onclick="readFolder()" type="button">Click me!</button></p>
+  <div id="result"></div>
+
+  <script src="../scripts.js"></script>
+  <script>
+    function test() {
+      alert("made it");
+    }
+  
+  </script>
+</body>
