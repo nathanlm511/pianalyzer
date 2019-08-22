@@ -1,8 +1,4 @@
 Flask
-gunicorn
 tensorflow
 numpy
-json
 PIL
-io
-os
