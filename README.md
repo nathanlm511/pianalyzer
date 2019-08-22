@@ -14,6 +14,9 @@ Try out the application [here](https://aqueous-bastion-23196.herokuapp.com/)!
 <p align="center">
   <img src="https://github.com/nathanlm511/pianalyzer/blob/master/static/images/chpn-p12.mid.json.jpg" />
 </p>
+<p align="center">
+  Chopin's Prelude No. 12
+</p>
 
 ## The ML Model
 The model uses four 2D convolution layers to recognize broad and specific patterns in the notes such as chords or extensions. To train the model, a moderately small datset of 300 classical pieces and 300 jazz pieces was used. However, the model's validation accuracy was around 99%. In the future, more analysis needs to be done to decide if the model is overfit.
